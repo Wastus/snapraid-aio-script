@@ -1275,7 +1275,7 @@ extract_snapraid_info() {
   # Build an array of content files
   CONTENT_FILES=(
     $(echo "$SNAPRAID_CONF_LINES" \
-      | grep snapraid.content \
+      | grep -E '^content ' \
       | cut -d ' ' -f2 \
       | sed 's/^[[:space:]]*//;s/[[:space:]]*$//')
   )
