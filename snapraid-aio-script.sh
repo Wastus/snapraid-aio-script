@@ -8,7 +8,7 @@
 ######################
 #  SCRIPT VARIABLES  #
 ######################
-SNAPSCRIPTVERSION="3.4" #DEV14
+SNAPSCRIPTVERSION="3.4" #DEV15
 
 # Read SnapRAID version
 SNAPRAIDVERSION="$(snapraid -V | sed -e 's/snapraid v\(.*\)by.*/\1/')"
@@ -991,25 +991,46 @@ function show_snapraid_info() {
    -d parse_mode="markdown"
   fi
   
-  if [ "$DISCORD" -eq 1 ]; then
-  INFO_MESSAGE_ESCAPED=$(echo "$INFO_MESSAGE_DISCORD" | jq -Rs | cut -c 2- | rev | cut -c 2- | rev)
-   curl -fsS -m 5 --retry 3 -o /dev/null -X POST \
-   -H 'Content-Type: application/json' \
-   -d "{\"content\": \"\`\`\`\\n${INFO_MESSAGE_ESCAPED}\\n\`\`\`\"}" \
-   "$DISCORD_WEBHOOK_URL"
+if [ "$DISCORD" -eq 1 ]; then
+  if [ "${#INFO_MESSAGE_DISCORD}" -gt 2000 ]; then
+    curl -fsS -m 5 --retry 3 -o /dev/null -X POST \
+      -H 'Content-Type: application/json' \
+      -d "{\"content\": \"⚠️ SnapRAID output exceeds Discord's 2000 character limit and was not posted. \"}" \
+      "$DISCORD_WEBHOOK_URL"
+  else
+    INFO_MESSAGE_ESCAPED=$(echo "$INFO_MESSAGE_DISCORD" | jq -Rs | cut -c 2- | rev | cut -c 2- | rev)
+    curl -fsS -m 5 --retry 3 -o /dev/null -X POST \
+      -H 'Content-Type: application/json' \
+      -d "{\"content\": \"\`\`\`\n${INFO_MESSAGE_ESCAPED}\n\`\`\`\"}" \
+      "$DISCORD_WEBHOOK_URL"
+  fi
+fi
+  
+if [ "$APPRISE" -eq 1 ]; then
+  # Create temp file to attach if needed
+  if [ "${#INFO_MESSAGE}" -gt 2000 ]; then
+    echo "$INFO_MESSAGE" > /tmp/snapraid_info_msg.txt
+    APPRISE_ATTACHMENT="-a /tmp/snapraid_info_msg.txt"
+    APPRISE_BODY="⚠️ SnapRAID output exceeds 2000 characters. The output is attached."
+  else
+    APPRISE_ATTACHMENT=""
+    APPRISE_BODY="$INFO_MESSAGE"
   fi
   
-  if [ "$APPRISE" -eq 1 ]; then
     for APPRISE_URL_U in "${APPRISE_URL[@]}"; do
         if [[ "$APPRISE_URL_U" == *"discord://"* ]]; then
             # For Discord, use the URL without format (markdown) parameter
-            "$APPRISE_BIN" -v -b "$INFO_MESSAGE" "$APPRISE_URL_U"
+            "$APPRISE_BIN" -v -b "$APPRISE_BODY" $APPRISE_ATTACHMENT "$APPRISE_URL_U"
         else
             # For all other services, use markdown formatting
             APPRISE_URL_FORMAT="${APPRISE_URL_U}?format=markdown"
-            "$APPRISE_BIN" -v -b "$INFO_MESSAGE" "$APPRISE_URL_FORMAT"
+            "$APPRISE_BIN" -v -b "$APPRISE_BODY" $APPRISE_ATTACHMENT "$APPRISE_URL_FORMAT"
         fi
     done
+	
+  # Clean up temp file if it was used
+  [ -f /tmp/snapraid_info_msg.txt ] && rm /tmp/snapraid_info_msg.txt
+  
   fi
 }
 
