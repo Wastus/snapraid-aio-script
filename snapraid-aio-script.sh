@@ -8,7 +8,7 @@
 ######################
 #  SCRIPT VARIABLES  #
 ######################
-SNAPSCRIPTVERSION="3.4" #DEV13
+SNAPSCRIPTVERSION="3.4" #DEV14
 
 # Read SnapRAID version
 SNAPRAIDVERSION="$(snapraid -V | sed -e 's/snapraid v\(.*\)by.*/\1/')"
@@ -1176,7 +1176,7 @@ check_and_install_apprise() {
     # Check if pipx is installed
     if ! command_exists pipx; then
         echo "pipx is not installed. Installing pipx..."
-        if ! sudo apt-get update && sudo apt-get install -y python3-pipx; then
+        if ! sudo apt-get update && sudo apt-get install -y pipx; then
             echo "Error: Failed to install pipx. Cannot proceed."
             return 1
         fi
