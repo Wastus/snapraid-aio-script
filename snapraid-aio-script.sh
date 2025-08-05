@@ -8,17 +8,17 @@
 ######################
 #  SCRIPT VARIABLES  #
 ######################
-SNAPSCRIPTVERSION="3.4" #DEV12
+SNAPSCRIPTVERSION="3.4" #DEV13
 
 # Read SnapRAID version
 SNAPRAIDVERSION="$(snapraid -V | sed -e 's/snapraid v\(.*\)by.*/\1/')"
 
 # find the current path
 CURRENT_DIR=$(dirname "${0}")
-# import the config file for this script which contain user configuration
-CONFIG_FILE=${1:-$CURRENT_DIR/script-config.conf}
-#shellcheck source=script-config.conf
-source "$CONFIG_FILE"
+
+# Default argument values
+CONFIG_FILE="$CURRENT_DIR/script-config.conf"
+FORCE_SYNC=false
 
 SYNC_MARKER="SYNC -"
 SCRUB_MARKER="SCRUB -"
@@ -28,20 +28,34 @@ SCRUB_MARKER="SCRUB -"
 ####################
 
 function main(){
+
+  # parse commands from arguments
+  parse_cmd_arguments "$@"
+
   # Check if script configuration file has been found, if not send a message
   # to syslog and exit
   if [ ! -f "$CONFIG_FILE" ]; then
     echo "Script configuration file not found! The script cannot be run! Please check and try again!"
 	  mklog_noconfig "WARN: Script configuration file not found! The script cannot be run! Please check and try again!"
-    exit 1;
+    exit 1
+  fi
+  
+  # Source config file
+  source "$CONFIG_FILE"
+
   # check if the config file has the correct version
-  elif [ "$CONFIG_VERSION" != "$SNAPSCRIPTVERSION" ]; then
+  if [ "$CONFIG_VERSION" != "$SNAPSCRIPTVERSION" ]; then
     echo "Please update your config file to the latest version. The current file is not compatible with this script!"
     mklog "WARN: Please update your config file to the latest version. The current file is not compatible with this script!"
     SUBJECT="[WARNING] - Configuration Error $EMAIL_SUBJECT_PREFIX"
     NOTIFY_OUTPUT="$SUBJECT"
     notify_warning "fatal"
     exit 1;
+  fi
+  
+  # check if sync has been forced by a command argument
+  if [ "$FORCE_SYNC" = true ]; then
+    SYNC_WARN_THRESHOLD=0
   fi
 
   # create tmp file for output
@@ -53,7 +67,8 @@ function main(){
   # Check if the script is running as root
   check_root
   
-  # timestamp the job
+  # Begin user output
+  
   echo "SnapRAID Script Job started [$(date)]"
   echo "Running SnapRAID version $SNAPRAIDVERSION"
   echo "SnapRAID AIO Script version $SNAPSCRIPTVERSION"
@@ -64,7 +79,6 @@ function main(){
   mklog "INFO: Running SnapRAID version $SNAPRAIDVERSION"
   mklog "INFO: SnapRAID Script version $SNAPSCRIPTVERSION"
   mklog "INFO: Using configuration file: $CONFIG_FILE"
-
   echo "## Preprocessing"
 
   # Check for basic dependencies
@@ -1323,6 +1337,37 @@ check_root() {
     notify_warning "fatal"
     exit 1
   fi
+}
+
+# Function to parse command arguments 
+parse_cmd_arguments() {
+while [[ $# -gt 0 ]]; do
+  case "$1" in
+    --config)
+      if [[ -n "$2" && "$2" != --* ]]; then
+        CONFIG_FILE="$2"
+        shift 2
+      else
+        echo "Error: --config requires a path argument."
+        exit 1
+      fi
+      ;;
+    --force-sync)
+      FORCE_SYNC=true
+      SYNC_WARN_THRESHOLD=0
+      shift
+      ;;
+    --help)
+      echo "Usage: $0 [--config <path>] [--force-sync]"
+      exit 0
+      ;;
+    *)
+      echo "Unknown option: $1"
+      echo "Use --help to see usage."
+      exit 1
+      ;;
+  esac
+done
 }
 
 # Set TRAP
