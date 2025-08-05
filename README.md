@@ -119,9 +119,10 @@ If you don't know what to do, I recommend using the default values and see how i
 	- A list of containers you want to be interrupted before running actions and restored when completed.
    	- Docker mode - choose to pause/unpause or to stop/restart your containers
    	- Docker remote - if docker is running on a remote machine
-- Multiple Configuration files
-  	- By default the script will use the predefined config file `script-config.conf` that must be placed in the same folder
-  	- You can specify another file when running the script like `snapraid-aio-script.sh /home/alternate_config.conf`
+- Command line arguments
+  	- Can be used to override the default behaviour.
+  	- You can force a sync by adding  `--force-sync`
+  	- You can specify another config file when running the script by adding  `--config /home/alternate_config.conf`
 - Custom Hooks
 	- Commands or scripts to be run before and after SnapRAID operations.
 	- Option to display friendly name to in the email output
@@ -300,7 +301,7 @@ If you are running a Debian based distro (with `apt` package manager) the script
 Dependencies that require manual installation:
 - `hd-idle` to spin down disks - [Link](https://github.com/adelolmo/hd-idle), installation instructions [below](#installing-hd-idle-for-automatic-disk-spindown)
 
-# Installation
+# Installation and usage
 
 1. Install the packages listed in the Requirements section if you're not running a distro with `apt` package manager
 2. Download the latest version from [Releases](https://github.com/auanasgheps/snapraid-aio-script/releases) 
@@ -315,7 +316,12 @@ Dependencies that require manual installation:
 6. Schedule the script execution. 
    - I recommend running the script daily.
   
-**TIP**: To use multiple config files, you can create different schedules. Just append the config file path after the script, like `snapraid-aio-script.sh /home/alternate_config.sh`
+
+### Command Line arguments
+
+The script supports two command line arguments to override the default behaviour:
+  - Script config file path: provides an alternative script config file path. Add `--config <path>`. Example `snapraid-aio-script.sh --config /home/alternate_config.sh`
+  - Override sync protection: execute a forced sync, useful after a warning. Add `--force-sync`. It can be used along with `--config`.
 
 It is tested on OMV6 and OMV7, but will work on other distros. In such case you may have to change the mail binary or SnapRAID location.
 
