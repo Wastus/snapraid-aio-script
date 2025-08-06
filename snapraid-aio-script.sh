@@ -8,7 +8,7 @@
 ######################
 #  SCRIPT VARIABLES  #
 ######################
-SNAPSCRIPTVERSION="3.4" #DEV15
+SNAPSCRIPTVERSION="3.4" #DEV16
 
 # Read SnapRAID version
 SNAPRAIDVERSION="$(snapraid -V | sed -e 's/snapraid v\(.*\)by.*/\1/')"
@@ -36,7 +36,7 @@ function main(){
   # to syslog and exit
   if [ ! -f "$CONFIG_FILE" ]; then
     echo "Script configuration file not found! The script cannot be run! Please check and try again!"
-	  mklog_noconfig "WARN: Script configuration file not found! The script cannot be run! Please check and try again!"
+      mklog_noconfig "WARN: Script configuration file not found! The script cannot be run! Please check and try again!"
     exit 1
   fi
   
@@ -112,12 +112,12 @@ function main(){
       "$DISCORD_WEBHOOK_URL"
     fi
     if [ "$APPRISE" -eq 1 ]; then
-	  echo "Apprise service notification is enabled."
-	  check_and_install_apprise
-	  for APPRISE_URL_U in "${APPRISE_URL[@]}"; do
-	  "$APPRISE_BIN" -b "SnapRAID Script Job started" "$APPRISE_URL_U"
-	  done
-	fi  
+      echo "Apprise service notification is enabled."
+      check_and_install_apprise
+      for APPRISE_URL_U in "${APPRISE_URL[@]}"; do
+      "$APPRISE_BIN" -b "SnapRAID Script Job started" "$APPRISE_URL_U"
+      done
+    fi  
   fi
 
   ### Check if SnapRAID is found
@@ -196,7 +196,7 @@ fi
     NOTIFY_OUTPUT="$SUBJECT"
     notify_warning "fatal"
     exit 1;
-	
+    
   elif [ $SNAPRAID_STATUS -eq 2 ]; then
     # Handle unknown status
     echo "Stopping the script due to unknown SnapRAID status. Please run 'snapraid status' on your host for more information."
@@ -371,8 +371,8 @@ fi
 
 # Custom Hook - After (if executed before drive spin down)
 if [ "$CUSTOM_HOOK" -eq 1 ] && [ "$EXECUTE_BEFORE_SPINDOWN" -eq 1 ]; then
-	echo "### Custom Hook - [$AFTER_HOOK_NAME]";
-	bash -c "$AFTER_HOOK_CMD"
+    echo "### Custom Hook - [$AFTER_HOOK_NAME]";
+    bash -c "$AFTER_HOOK_CMD"
 fi
 
 # Spin down disks (Method hd-idle - spins down all rotational devices)
@@ -422,7 +422,7 @@ fi
     else
     # or send a short mail
       trim_log < "$TMP_OUTPUT" | send_mail
-	fi
+    fi
   fi
 
   # Save and rotate logs if enabled
@@ -914,14 +914,14 @@ function notify_success(){
   
   if [ "$APPRISE" -eq 1 ]; then
     echo "Sending notification using Apprise service(s)."
-	  for APPRISE_URL_U in "${APPRISE_URL[@]}"; do
-	  "$APPRISE_BIN" -t "SnapRAID on $(hostname)" -b "$NOTIFY_OUTPUT" "$APPRISE_URL_U"
+      for APPRISE_URL_U in "${APPRISE_URL[@]}"; do
+      "$APPRISE_BIN" -t "SnapRAID on $(hostname)" -b "$NOTIFY_OUTPUT" "$APPRISE_URL_U"
       done
   fi
   
   if [ "$APPRISE_EMAIL" -eq 1 ]; then
     APPRISE_EMAIL_ATTACH_DO=0
-  fi 	
+  fi    
   
   mklog "INFO: "$SUBJECT""
   }
@@ -965,7 +965,7 @@ function notify_warning(){
   
   if [ "$APPRISE_EMAIL" -eq 1 ]; then
     APPRISE_EMAIL_ATTACH_DO=1
-  fi 	
+  fi    
 
   mklog "WARN: $SUBJECT"
 }
@@ -1027,7 +1027,7 @@ if [ "$APPRISE" -eq 1 ]; then
             "$APPRISE_BIN" -v -b "$APPRISE_BODY" $APPRISE_ATTACHMENT "$APPRISE_URL_FORMAT"
         fi
     done
-	
+    
   # Clean up temp file if it was used
   [ -f /tmp/snapraid_info_msg.txt ] && rm /tmp/snapraid_info_msg.txt
   
@@ -1216,7 +1216,7 @@ check_and_install_apprise() {
         echo -e "\nApprise has been successfully installed!"
         echo -e "\n⚠️  Important: You need to restart your shell session to use apprise."
         echo "Please exit and restart your terminal, then run your script again."
-		notify_warning
+        notify_warning
         exit 0
     else
         echo "apprise is already installed via pipx."
@@ -1333,17 +1333,17 @@ check_snapraid_status() {
 
   # Check for the "No sync is in progress" message
   if echo "$snapraid_status_output" | grep -q "No sync is in progress"; then
-	echo "Previous sync completed successfully, proceeding."
-	mklog "WARN: Previous sync completed successfully, proceeding."
+    echo "Previous sync completed successfully, proceeding."
+    mklog "WARN: Previous sync completed successfully, proceeding."
     SNAPRAID_STATUS=0
-		
+        
     # Check for the "NOT fully synced" warning message
   elif echo "$snapraid_status_output" | grep -q "WARNING! The array is NOT fully synced."; then
-	mklog "WARN: The array is NOT fully synced. Stopping the script."
+    mklog "WARN: The array is NOT fully synced. Stopping the script."
     SNAPRAID_STATUS=1
   else 
     # If neither message is found, handle the unknown state
-	mklog "WARN: The array status is unknown. Stopping the script."
+    mklog "WARN: The array status is unknown. Stopping the script."
     SNAPRAID_STATUS=2
   fi
 }
