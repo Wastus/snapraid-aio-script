@@ -313,8 +313,12 @@ Dependencies that require manual installation:
    - Every config is documented but defaults are pretty resonable, so don't make changes if you're not sure.
    - When you see  `""` or `''` in some options, do not remove these characters but just fill in your data.
    - If you want to spindown your disks, you need to install [hd-idle](https://github.com/adelolmo/hd-idle)
-6. Schedule the script execution. 
-   - I recommend running the script daily.
+6. Schedule a daily execution. If you're running OMV, browse to System > Scheduled Tasks to create a new one.
+   - If you're not running OMV, open the crontab editor `crontab -e`
+   - Add the following line to run the script every day at midnight: `0 0 * * * /usr/sbin/snapraid-aio-script.sh`
+     - Use [Contab Guru](https://crontab.guru/) to easily pick your preferred time
+     - Add Command Line arguments if needed (see below).
+	   
   
 
 ### Command Line arguments
@@ -322,6 +326,7 @@ Dependencies that require manual installation:
 The script supports two command line arguments to override the default behaviour:
   - Script config file path: provides an alternative script config file path. Add `--config <path>`. Example `snapraid-aio-script.sh --config /home/alternate_config.sh`
   - Override sync protection: execute a forced sync, useful after a warning. Add `--force-sync`. It can be used along with `--config`.
+	- You can schedule this as a task but keep it disabled, to execute it manually to pass a WARNING.
 
 It is tested on OMV6 and OMV7, but will work on other distros. In such case you may have to change the mail binary or SnapRAID location.
 
