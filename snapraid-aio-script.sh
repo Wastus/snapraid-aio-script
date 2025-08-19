@@ -8,7 +8,7 @@
 ######################
 #  SCRIPT VARIABLES  #
 ######################
-SNAPSCRIPTVERSION="3.4" #DEV16
+SNAPSCRIPTVERSION="3.4" #DEV17
 
 # Read SnapRAID version
 SNAPRAIDVERSION="$(snapraid -V | sed -e 's/snapraid v\(.*\)by.*/\1/')"
@@ -36,7 +36,7 @@ function main(){
   # to syslog and exit
   if [ ! -f "$CONFIG_FILE" ]; then
     echo "Script configuration file not found! The script cannot be run! Please check and try again!"
-      mklog_noconfig "WARN: Script configuration file not found! The script cannot be run! Please check and try again!"
+    mklog_noconfig "WARN: Script configuration file not found! The script cannot be run! Please check and try again!"
     exit 1
   fi
   
@@ -111,12 +111,14 @@ function main(){
       -d '{"content": "SnapRAID Script Job started"}' \
       "$DISCORD_WEBHOOK_URL"
     fi
-    if [ "$APPRISE" -eq 1 ]; then
+    if [ "$APPRISE" -eq 1 ] || [ "$APPRISE_EMAIL" -eq 1 ] ; then
       echo "Apprise service notification is enabled."
       check_and_install_apprise
+      if [ "$APPRISE" -eq 1 ] ; then
       for APPRISE_URL_U in "${APPRISE_URL[@]}"; do
       "$APPRISE_BIN" -b "SnapRAID Script Job started" "$APPRISE_URL_U"
       done
+      fi
     fi  
   fi
 
@@ -918,10 +920,10 @@ function notify_success(){
       "$APPRISE_BIN" -t "SnapRAID on $(hostname)" -b "$NOTIFY_OUTPUT" "$APPRISE_URL_U"
       done
   fi
-  
+
   if [ "$APPRISE_EMAIL" -eq 1 ]; then
     APPRISE_EMAIL_ATTACH_DO=0
-  fi    
+  fi
   
   mklog "INFO: "$SUBJECT""
   }
@@ -1027,7 +1029,7 @@ if [ "$APPRISE" -eq 1 ]; then
             "$APPRISE_BIN" -v -b "$APPRISE_BODY" $APPRISE_ATTACHMENT "$APPRISE_URL_FORMAT"
         fi
     done
-    
+
   # Clean up temp file if it was used
   [ -f /tmp/snapraid_info_msg.txt ] && rm /tmp/snapraid_info_msg.txt
   
@@ -1150,6 +1152,11 @@ function mklog_noconfig() {
 
 # Function to check and install packages if not found
 check_and_install() {
+
+# Function to check if a command exists
+command_exists() {
+    command -v "$1" >/dev/null 2>&1
+}
   PACKAGE_NAME="$1"
 
   # If dpkg is missing, skip the check but warn the user
@@ -1164,7 +1171,7 @@ check_and_install() {
     echo "$PACKAGE_NAME not found. Attempting to install..."
     mklog "INFO: Attempting to install missing package: $PACKAGE_NAME"
 
-    if ! sudo apt-get install -y "$PACKAGE_NAME" > /dev/null 2>&1; then
+    if ! sudo apt-get -qq install -y "$PACKAGE_NAME" > /dev/null 2>&1; then
       echo "ERROR: Failed to install $PACKAGE_NAME"
       mklog "ERROR: apt-get failed to install $PACKAGE_NAME"
       return 1
@@ -1183,45 +1190,65 @@ check_and_install() {
 }
 
 check_and_install_apprise() {
-    # Function to check if a command exists
-    command_exists() {
-        command -v "$1" >/dev/null 2>&1
-    }
+# Check if apt-get exists
+if ! command_exists apt-get; then
+    echo "Error: This script requires apt-get package manager. Cannot proceed."
+    return 1
+fi
 
-    # Check if apt-get exists
-    if ! command_exists apt-get; then
-        echo "Error: This script requires apt-get package manager. Cannot proceed."
-        return 1
-    fi
+# Ensure the home directory exists and is writable
+USER_TO_RUN="${SUDO_USER:-$USER}"
+USER_HOME=$(eval echo "~$USER_TO_RUN")
+if [ ! -d "$USER_HOME" ] || [ ! -w "$USER_HOME" ]; then
+    echo "Error: Home directory for user '$USER_TO_RUN' is missing or not writable."
+    exit 1
+fi
 
-    # Check if pipx is installed
-    if ! command_exists pipx; then
-        echo "pipx is not installed. Installing pipx..."
-        if ! sudo apt-get update && sudo apt-get install -y pipx; then
-            echo "Error: Failed to install pipx. Cannot proceed."
-            return 1
-        fi
-        # Ensure pipx is properly set up
-        pipx ensurepath
-    fi
+# Check if pipx is installed
+if ! sudo -u "$USER_TO_RUN" which pipx >/dev/null2>&1; then
+  echo "pipx is not installed. Installing pipx..."
 
-    # Check if apprise is installed via pipx
-    if ! pipx list | grep -i "apprise" >/dev/null; then
-        echo "apprise is not installed. Installing apprise using pipx..."
-        if ! pipx install apprise; then
-            echo "Error: Failed to install apprise."
-            return 1
-        fi
-        
-        echo -e "\nApprise has been successfully installed!"
-        echo -e "\n⚠️  Important: You need to restart your shell session to use apprise."
-        echo "Please exit and restart your terminal, then run your script again."
-        notify_warning
-        exit 0
-    else
-        echo "apprise is already installed via pipx."
-        return 0
+  # Install pipx via apt
+  sudo apt-get -qq update && sudo apt-get -qq install -y pipx
+  
+  # Check again if pipx is now available
+  if ! sudo -u "$USER_TO_RUN" which pipx >/dev/null 2>&1; then
+    echo "Error: pipx installation failed."
+    exit 1
+  fi
+
+  # Run pipx ensurepath (not global if run as sudo)
+  sudo -u "$USER_TO_RUN" -H bash -c "pipx ensurepath"
+  
+  # notify user that the script needs to be run again
+  echo -e "\nPipx has been successfully installed!"
+  echo -e "\n⚠️  Important: You need to restart your shell session to install and use Apprise."
+  echo "Please restart your terminal and/or run your script again."
+  mklog "Important: You need to restart your shell session to install and use Apprise. Please restart your terminal and/or run your script again."
+  exit 0
+fi
+
+# Check if apprise is installed via pipx
+APPRISE_BIN=$(resolve_apprise_bin "$USER_TO_RUN")
+
+if [ ! -x "$APPRISE_BIN" ]; then
+  echo "Apprise is not installed. Installing apprise using pipx..."
+    if ! sudo -u "$USER_TO_RUN" pipx install apprise; then
+    echo "Error: Failed to install apprise."
+    return 1
     fi
+    hash -r
+    APPRISE_BIN=$(resolve_apprise_bin "$USER_TO_RUN")
+fi
+}
+
+resolve_apprise_bin() {
+    local user="${1:-$USER}"
+    local home
+    home=$(eval echo "~$user")
+    sudo -H -u "$user" env HOME="$home" \
+        PATH="$home/.local/bin:$PATH:/usr/local/bin:/usr/bin:/bin" \
+        which -a apprise | head -n1
 }
 
 # Check OMV Version
