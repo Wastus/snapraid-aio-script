@@ -483,7 +483,7 @@ function sanity_check() {
 
 function get_counts() {
   EQ_COUNT=$(grep -wE '^ *[0-9]+ equal' "$TMP_OUTPUT" | sed 's/^ *//g' | cut -d ' ' -f1)
-  if [ $IGNORE_PATTERN ]; then
+  if [ ${#IGNORE_PATTERN[@]} -gt 0 ]; then
     ADD_COUNT=$(count_actions_with_ignore add)
     UPDATE_COUNT=$(count_actions_with_ignore update)
     DEL_COUNT=$(count_actions_with_ignore remove)
